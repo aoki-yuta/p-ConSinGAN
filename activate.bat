@@ -1,0 +1,1 @@
+conda activate py35_pConSinGAN 
