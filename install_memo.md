@@ -11,13 +11,13 @@ cd ConSinGAN
 ```
 2. conda環境の作成
 ```bat
-conda create -n hogehoge python=3.5
-conda activate hogehoge
+conda create -n py35_pConSinGAN python=3.5
+conda activate py35_pConSinGAN
 ```
 3. ライブラリのインストール
 ```bat
 conda install pytorch==1.1.0 torchvision==0.3.0 cudatoolkit=10.0 -c pytorch
-python -m pip install -r rewuirements.txt
+python -m pip install -r requirements.txt
 ```
 4. ファイルの編集
 main_train.py 107行目
