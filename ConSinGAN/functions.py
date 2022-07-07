@@ -84,7 +84,7 @@ def sample_random_noise(depth, reals_shapes, opt):
             noise.append(generate_noise([opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]],
                                          device=opt.device).detach())
         else:
-            if opt.train_mode == "generation" or opt.train_mode == "animation":
+            if opt.train_mode == "generation" or opt.train_mode == "animation" or opt.train_mode == "inpainting":
                 noise.append(generate_noise([opt.nfc, reals_shapes[d][2] + opt.num_layer * 2,
                                              reals_shapes[d][3] + opt.num_layer * 2],
                                              device=opt.device).detach())
@@ -129,6 +129,16 @@ def read_image(opt):
     x = img.imread('%s' % (opt.input_name))
     x = np2torch(x,opt)
     x = x[:,0:3,:,:]
+    return x
+
+def read_mask(opt):
+    x = img.imread('%s' % (opt.input_name))
+    x = np.logical_not(np.logical_and(x[:,:,0]==255, x[:,:,1]==0, x[:,:,2]==255))
+    #x = x[:,:,4]==255#αチャンネル
+    ##x = x[:, :, np.newaxis]
+    x = x[np.newaxis, np.newaxis, :, :].astype(np.float32)
+    #x = np2torch(x,opt)
+    x = torch.from_numpy(x)
     return x
 
 
@@ -206,6 +216,24 @@ def create_reals_pyramid(real, opt):
     reals.append(real)
     return reals
 
+def create_masks_pyramid(real, opt):
+    masks = []
+    # use old rescaling method for harmonization
+    if opt.train_mode == "harmonization":
+        for i in range(opt.stop_scale):
+            scale = math.pow(opt.scale_factor, opt.stop_scale - i)
+            curr_mask = imresize(real, scale, opt)
+            masks.append(curr_mask)
+    # use new rescaling method for all other tasks
+    else:
+        for i in range(opt.stop_scale):
+            scale = math.pow(opt.scale_factor,((opt.stop_scale-1)/math.log(opt.stop_scale))*math.log(opt.stop_scale-i)+1)
+            curr_mask = imresize(real,scale,opt)
+            #少しでもマスクが滲んだらマスク
+            curr_mask = (curr_mask == 1).float()
+            masks.append(curr_mask)
+    masks.append(real)
+    return masks
 
 def load_trained_model(opt):
     dir = generate_dir2save(opt)
