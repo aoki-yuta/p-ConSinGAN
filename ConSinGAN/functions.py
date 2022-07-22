@@ -124,6 +124,36 @@ def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * LAMBDA
     return gradient_penalty
 
+def calc_gradient_penalty2(netD, real_data, fake_data, mask, LAMBDA, device):
+    MSGGan = False
+    if  MSGGan:
+        alpha = torch.rand(1, 1)
+        alpha = alpha.to(device)  # cuda() #gpu) #if use_cuda else alpha
+
+        interpolates = [alpha * rd + ((1 - alpha) * fd) for rd, fd in zip(real_data, fake_data)]
+        interpolates = [i.to(device) for i in interpolates]
+        interpolates = [torch.autograd.Variable(i, requires_grad=True) for i in interpolates]
+
+        disc_interpolates = netD(interpolates, mask)
+    else:
+        alpha = torch.rand(1, 1)
+        alpha = alpha.expand(real_data.size())
+        alpha = alpha.to(device)  # cuda() #gpu) #if use_cuda else alpha
+
+        interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+        interpolates = interpolates.to(device)#.cuda()
+        interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
+
+        disc_interpolates = netD(interpolates, mask)
+
+    gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                              grad_outputs=torch.ones(disc_interpolates.size()).to(device),#.cuda(), #if use_cuda else torch.ones(
+                                  #disc_interpolates.size()),
+                              create_graph=True, retain_graph=True, only_inputs=True)[0]
+    #LAMBDA = 1
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * LAMBDA
+    return gradient_penalty
+
 
 def read_image(opt):
     x = img.imread('%s' % (opt.input_name))

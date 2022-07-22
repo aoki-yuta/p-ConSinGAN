@@ -53,7 +53,7 @@ def train(opt):
             generator.init_next_stage()
 
         writer = SummaryWriter(log_dir=opt.outf)
-        fixed_noise, noise_amp, generator, d_curr = train_single_scale(d_curr, generator, reals, fixed_noise, noise_amp, opt, scale_num, writer)
+        fixed_noise, noise_amp, generator, d_curr = train_single_scale(d_curr, generator, reals, fixed_noise, noise_amp, opt, scale_num, writer, masks)
 
         torch.save(fixed_noise, '%s/fixed_noise.pth' % (opt.out_))
         torch.save(generator, '%s/G.pth' % (opt.out_))
@@ -64,9 +64,10 @@ def train(opt):
     return
 
 
-def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, writer):
+def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, writer, masks):
     reals_shapes = [real.shape for real in reals]
     real = reals[depth]
+    mask = masks[depth]
 
     alpha = opt.alpha
 
@@ -148,7 +149,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
         for j in range(opt.Dsteps):
             # train with real
             netD.zero_grad()
-            output = netD(real)
+            output = netD(real, mask)
             errD_real = -output.mean()
 
             # train with fake
@@ -158,10 +159,10 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
                 with torch.no_grad():
                     fake = netG(noise, reals_shapes, noise_amp)
 
-            output = netD(fake.detach())
+            output = netD(fake.detach(), mask)
             errD_fake = output.mean()
 
-            gradient_penalty = functions.calc_gradient_penalty(netD, real, fake, opt.lambda_grad, opt.device)
+            gradient_penalty = functions.calc_gradient_penalty2(netD, real, fake, mask,opt.lambda_grad, opt.device)
             errD_total = errD_real + errD_fake + gradient_penalty
             errD_total.backward()
             optimizerD.step()
@@ -169,7 +170,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
         ############################
         # (2) Update G network: maximize D(G(z))
         ###########################
-        output = netD(fake)
+        output = netD(fake, mask)
         errG = -output.mean()
 
         if alpha != 0:
@@ -240,8 +241,9 @@ def init_G(opt):
 
 def init_D(opt):
     #discriminator initialization:
-    netD = models.Discriminator(opt).to(opt.device)
-    netD.apply(models.weights_init)
+    netD = models.Discriminator2(opt).to(opt.device)
+    #netD.apply(models.weights_init2)
+    models.weights_init2(netD)#重みの初期化
     # print(netD)
 
     return netD

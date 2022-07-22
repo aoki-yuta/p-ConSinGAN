@@ -6,6 +6,8 @@ import copy
 import torch.nn.functional as F
 from ConSinGAN.imresize import imresize, imresize_to_shape
 
+import ConSinGAN.partialconv2d as PC
+import ConSinGAN.rn as RN
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -14,6 +16,21 @@ def weights_init(m):
     elif classname.find('Norm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+        
+def weights_init2(m):
+    m.pconv1.weight.data.normal_(0.0,0.02)
+    m.pconv2.weight.data.normal_(0.0,0.02)
+    m.pconv3.weight.data.normal_(0.0,0.02)
+    m.pconv4.weight.data.normal_(0.0,0.02)
+    m.pconv5.weight.data.normal_(0.0,0.02)
+    # m.BN1.weight.data.normal_(1.0,0.02)
+    # m.BN2.weight.data.normal_(1.0,0.02)
+    # m.BN3.weight.data.normal_(1.0,0.02)
+    # m.BN4.weight.data.normal_(1.0,0.02)
+    # m.BN1.bias.data.fill_(0)
+    # m.BN2.bias.data.fill_(0)
+    # m.BN3.bias.data.fill_(0)
+    # m.BN4.bias.data.fill_(0)
 
 
 def get_activation(opt):
@@ -61,6 +78,61 @@ class Discriminator(nn.Module):
         out = self.tail(body)
         return out
 
+
+class Discriminator2(nn.Module):
+    def __init__(self, opt):
+        super(Discriminator2, self).__init__()
+
+        self.opt = opt
+        N = int(opt.nfc)
+
+        # self.head = ConvBlock(opt.nc_im, N, opt.ker_size, opt.padd_size, opt)
+
+        # self.body = nn.Sequential()
+        # for i in range(opt.num_layer):
+        #     block = ConvBlock(N, N, opt.ker_size, opt.padd_size, opt)
+        #     self.body.add_module('block%d'%(i),block)
+
+        # self.tail = nn.Conv2d(N, 1, kernel_size=opt.ker_size, padding=opt.padd_size)
+        
+        # nn.Conv2d(in_channel, out_channel, kernel_size=ker_size, stride=1, padding=padd)
+        
+        ##head##
+        self.pconv1=PC.PartialConv2d(opt.nc_im,N,kernel_size=opt.ker_size,stride=1,padding=opt.padd_size,return_mask=True)
+        self.BN1=RN.RN_B(N)
+        self.LReLU1=get_activation(opt)
+        ##body##
+        #num_layer=5と想定
+        # i=0
+        # N = int(opt.nfc/pow(2,(i+1)))
+        self.pconv2=PC.PartialConv2d(N,N,kernel_size=opt.ker_size,stride=1,padding=opt.padd_size,return_mask=True)
+        self.BN2=RN.RN_B(N)
+        self.LReLU2=get_activation(opt)
+        # i=1
+        # N = int(opt.nfc/pow(2,(i+1)))
+        self.pconv3=PC.PartialConv2d(N,N,kernel_size=opt.ker_size,stride=1,padding=opt.padd_size,return_mask=True)
+        self.BN3=RN.RN_B(N)
+        self.LReLU3=get_activation(opt)
+        # i=2
+        # N = int(opt.nfc/pow(2,(i+1)))
+        self.pconv4=PC.PartialConv2d(N,N,kernel_size=opt.ker_size,stride=1,padding=opt.padd_size,return_mask=True)
+        self.BN4=RN.RN_B(N)
+        self.LReLU4=get_activation(opt)
+        ##tail##
+        self.pconv5=PC.PartialConv2d(N,1,kernel_size=opt.ker_size,stride=1,padding=opt.padd_size,return_mask=True)
+        
+
+    def forward(self,x,mask0):
+        x1,m1=self.pconv1(x,mask0)
+        x1=self.LReLU1(self.BN1(x1, m1))        
+        x2,m2=self.pconv2(x1,m1)
+        x2=self.LReLU2(self.BN2(x2, m2))
+        x3,m3=self.pconv3(x2,m2)
+        x3=self.LReLU3(self.BN3(x3, m3))
+        x4,m4=self.pconv4(x3,m3)
+        x4=self.LReLU4(self.BN4(x4, m4))
+        x5,m5=self.pconv5(x4,m4)
+        return x5
 
 class GrowingGenerator(nn.Module):
     def __init__(self, opt):
