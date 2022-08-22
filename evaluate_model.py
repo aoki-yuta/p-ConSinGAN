@@ -20,7 +20,7 @@ def make_dir(path):
 def generate_samples(netG, reals_shapes, noise_amp, scale_w=1.0, scale_h=1.0, reconstruct=False, n=50):
     if reconstruct:
         reconstruction = netG(fixed_noise, reals_shapes, noise_amp)
-        if opt.train_mode == "generation" or opt.train_mode == "retarget":
+        if opt.train_mode == "generation" or opt.train_mode == "retarget" or opt.train_mode == "inpainting":
             functions.save_image('{}/reconstruction.jpg'.format(dir2save), reconstruction.detach())
             functions.save_image('{}/real_image.jpg'.format(dir2save), reals[-1].detach())
         elif opt.train_mode == "harmonization" or opt.train_mode == "editing":
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     noise_amp = torch.load('%s/noise_amp.pth' % opt.model_dir, map_location="cuda:{}".format(torch.cuda.current_device()))
     reals_shapes = [r.shape for r in reals]
 
-    if opt.train_mode == "generation" or opt.train_mode == "retarget":
+    if opt.train_mode == "generation" or opt.train_mode == "retarget" or opt.train_mode == "inpainting":
 
         print("Generating Samples...")
         with torch.no_grad():
