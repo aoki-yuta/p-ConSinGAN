@@ -42,6 +42,7 @@ def generate_samples(netG, reals_shapes, noise_amp, scale_w=1.0, scale_h=1.0, re
         functions.save_image('{}/gen_sample_{}.jpg'.format(dir2save_parent, idx), sample.detach())
 
 
+
 if __name__ == '__main__':
     parser = get_arguments()
     parser.add_argument('--model_dir', help='input image name', required=True)
@@ -71,8 +72,8 @@ if __name__ == '__main__':
     reals = torch.load('%s/reals.pth' % opt.model_dir, map_location="cuda:{}".format(torch.cuda.current_device()))
     noise_amp = torch.load('%s/noise_amp.pth' % opt.model_dir, map_location="cuda:{}".format(torch.cuda.current_device()))
     reals_shapes = [r.shape for r in reals]
-
-    if opt.train_mode == "generation" or opt.train_mode == "retarget" or opt.train_mode == "inpainting":
+        
+    if opt.train_mode == "generation" or opt.train_mode == "retarget":
 
         print("Generating Samples...")
         with torch.no_grad():
@@ -119,6 +120,21 @@ if __name__ == '__main__':
             for _beta in range(80, 100, 5):
                 functions.generate_gif(dir2save, netG, fixed_noise, reals, noise_amp, opt,
                                        alpha=0.1, beta=_beta/100.0, start_scale=_start_scale, num_images=100, fps=10)
+                
+    elif opt.train_mode == "inpainting":
+        print("Generating Samples...")
+        with torch.no_grad():
+            # # generate reconstruction
+            generate_samples(netG, reals_shapes, noise_amp, reconstruct=True)
+
+            # generate random samples of normal resolution
+            rs0 = generate_samples(netG, reals_shapes, noise_amp, n=opt.num_samples)
+
+            # generate random samples of different resolution
+            generate_samples(netG, reals_shapes, noise_amp, scale_w=2, scale_h=1, n=opt.num_samples)
+            generate_samples(netG, reals_shapes, noise_amp, scale_w=1, scale_h=2, n=opt.num_samples)
+            generate_samples(netG, reals_shapes, noise_amp, scale_w=2, scale_h=2, n=opt.num_samples)
+        
 
     print("Done. Results saved at: {}".format(dir2save))
 
