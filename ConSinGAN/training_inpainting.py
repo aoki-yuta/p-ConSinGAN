@@ -176,7 +176,8 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
         if alpha != 0:
             loss = nn.MSELoss()
             rec = netG(fixed_noise, reals_shapes, noise_amp)
-            rec_loss = alpha * loss(rec, real)
+            #rec_loss = alpha * loss(rec, real)
+            rec_loss = alpha * loss(rec*mask, real*mask)*torch.sum(torch.ones(mask.size()))/torch.sum(mask)
         else:
             rec_loss = 0
 
